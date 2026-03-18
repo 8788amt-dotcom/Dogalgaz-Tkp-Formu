@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#0f1923">
+<title>Doğalgaz Sayaç Takip</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f1923;--bg2:#162130;--bg3:#1d2d3e;--bg4:#243447;
+  --accent:#3b9eff;--accent2:#1a7de0;
+  --green:#2ecc8a;--amber:#f5a623;--red:#ff5c5c;--pink:#e05b9a;
+  --text:#e8f0f8;--text2:#8ca8c4;--text3:#4d6a84;
+  --border:rgba(59,158,255,0.12);--border2:rgba(59,158,255,0.22);
+  --radius:14px;--radius-sm:9px;
+}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:80px;}
+
+header{background:var(--bg2);border-bottom:1px solid var(--border);padding:16px 20px 12px;position:sticky;top:0;z-index:100;}
+.header-inner{max-width:640px;margin:0 auto;display:flex;align-items:center;gap:12px;}
+.app-title{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;}
+.app-title span{color:var(--accent);}
+.app-sub{font-size:11px;color:var(--text3);margin-top:1px;}
+
+.tabs{display:flex;background:var(--bg2);border-bottom:1px solid var(--border);padding:0 20px;overflow-x:auto;}
+.tab-btn{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;color:var(--text3);background:none;border:none;border-bottom:2px solid transparent;padding:11px 14px;cursor:pointer;transition:color .2s,border-color .2s;white-space:nowrap;}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+main{max-width:640px;margin:0 auto;padding:20px 16px;}
+.tab-pane{display:none;animation:fadein .2s ease;}
+.tab-pane.active{display:block;}
+@keyframes fadein{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:14px;}
+.card-head{font-family:'Syne',sans-serif;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);margin-bottom:14px;}
+
+.label{font-size:12px;color:var(--text3);margin-bottom:6px;display:block;}
+input[type=number]{
+  width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);
+  color:var(--text);font-family:'DM Sans',sans-serif;font-size:16px;padding:11px 14px;
+  outline:none;transition:border-color .2s,background .2s;-moz-appearance:textfield;
+}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;}
+input[type=number]:focus{border-color:var(--accent);background:var(--bg4);}
+input[type=number]::placeholder{color:var(--text3);}
+input[type=number][readonly]{color:var(--accent);font-weight:500;background:rgba(59,158,255,0.06);border-color:rgba(59,158,255,0.25);cursor:default;}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:400px){.grid2{grid-template-columns:1fr;}}
+
+/* ANLIL SAYAÇ PANELİ */
+.sayac-panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:14px;}
+
+.endeks-row{display:grid;grid-template-columns:1fr 24px 1fr;align-items:end;gap:8px;margin-bottom:16px;}
+.endeks-ok{text-align:center;font-size:18px;color:var(--text3);padding-bottom:10px;}
+
+/* BÜYÜK SONUÇ */
+.sonuc-kutu{background:var(--bg3);border-radius:var(--radius);padding:20px;margin-bottom:14px;}
+.sonuc-ust{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
+.s-kart{text-align:center;}
+.s-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:6px;}
+.s-val{font-family:'Syne',sans-serif;font-size:28px;font-weight:700;line-height:1;}
+.s-val.blue{color:var(--accent);}
+.s-val.green{color:var(--green);}
+.s-unit{font-size:11px;color:var(--text3);margin-top:4px;}
+
+.dokum{border-top:1px solid var(--border);padding-top:12px;}
+.drow{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;}
+.drow .dk{color:var(--text3);}
+.drow .dv{color:var(--text);font-weight:500;}
+.drow.amber .dk,.drow.amber .dv{color:var(--amber);}
+.drow.toplam-row{border-top:1px solid var(--border);margin-top:4px;padding-top:8px;}
+.drow.toplam-row .dk{color:var(--accent);font-family:'Syne',sans-serif;font-weight:600;font-size:14px;}
+.drow.toplam-row .dv{color:var(--accent);font-size:15px;}
+
+.btn-kaydet{width:100%;background:var(--green);border:none;border-radius:var(--radius-sm);color:#0f1923;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;padding:13px;cursor:pointer;transition:opacity .2s,transform .1s;margin-top:4px;}
+.btn-kaydet:hover{opacity:.9;}
+.btn-kaydet:active{transform:scale(0.98);}
+
+.info{background:rgba(59,158,255,0.08);border:1px solid rgba(59,158,255,0.2);border-radius:var(--radius-sm);padding:11px 14px;font-size:12px;color:var(--accent);line-height:1.6;margin-bottom:14px;}
+.warn{background:rgba(245,166,35,0.08);border:1px solid rgba(245,166,35,0.2);border-radius:var(--radius-sm);padding:11px 14px;font-size:12px;color:var(--amber);line-height:1.6;margin-bottom:14px;}
+.success{background:rgba(46,204,138,0.08);border:1px solid rgba(46,204,138,0.2);border-radius:var(--radius-sm);padding:11px 14px;font-size:12px;color:var(--green);line-height:1.6;margin-bottom:14px;}
+
+.btn-reset{background:none;border:1px solid rgba(255,92,92,0.25);border-radius:var(--radius-sm);color:var(--red);font-family:'DM Sans',sans-serif;font-size:12px;padding:7px 14px;cursor:pointer;white-space:nowrap;}
+.btn-reset:hover{background:rgba(255,92,92,0.08);}
+
+.switch-row{display:flex;align-items:center;gap:10px;}
+.switch{position:relative;display:inline-block;width:40px;height:22px;flex-shrink:0;}
+.switch input{opacity:0;width:0;height:0;}
+.sw-sl{position:absolute;cursor:pointer;inset:0;background:var(--bg4);border-radius:22px;border:1px solid var(--border2);transition:.2s;}
+.sw-sl:before{position:absolute;content:"";height:16px;width:16px;left:2px;bottom:2px;background:var(--text3);border-radius:50%;transition:.2s;}
+input:checked+.sw-sl{background:var(--accent2);border-color:var(--accent);}
+input:checked+.sw-sl:before{transform:translateX(18px);background:#fff;}
+.sw-label{font-size:13px;color:var(--text2);flex:1;}
+.badge-amber{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;background:rgba(245,166,35,0.15);color:var(--amber);}
+.badge-green{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;background:rgba(46,204,138,0.15);color:var(--green);}
+
+/* YIL SEÇİCİ */
+.yil-sec{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
+.yil-btn{background:none;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text2);font-size:18px;width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.yil-btn:hover{border-color:var(--accent);color:var(--accent);}
+.yil-label-el{font-family:'Syne',sans-serif;font-size:16px;font-weight:600;color:var(--text);flex:1;text-align:center;}
+
+/* AY SATIRLARI */
+.ay-satir{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:8px;}
+.ay-satir.kayitli{border-color:rgba(59,158,255,0.3);}
+.ay-satir.aktif-ay{border-color:var(--green);background:rgba(46,204,138,0.04);}
+.ay-basi{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.ay-adi{font-family:'Syne',sans-serif;font-size:14px;font-weight:600;color:var(--text2);}
+.ay-durum{font-size:11px;padding:2px 10px;border-radius:20px;}
+.ay-durum.kayitli{background:rgba(59,158,255,0.12);color:var(--accent);}
+.ay-durum.aktif{background:rgba(46,204,138,0.12);color:var(--green);}
+.ay-durum.bos{background:var(--bg4);color:var(--text3);}
+.ay-icerik{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+@media(max-width:400px){.ay-icerik{grid-template-columns:1fr 1fr;}}
+.ay-bilgi{text-align:center;background:var(--bg4);border-radius:6px;padding:8px;}
+.ay-bilgi-lbl{font-size:10px;color:var(--text3);margin-bottom:4px;}
+.ay-bilgi-val{font-size:14px;font-weight:500;color:var(--text);}
+.ay-bilgi-val.accent{color:var(--accent);}
+.ay-bilgi-val.green{color:var(--green);}
+
+/* ÖZET */
+.ozet-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;}
+@media(max-width:380px){.ozet-grid{grid-template-columns:1fr 1fr;}}
+.ozet-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;text-align:center;}
+.ozet-card.vurgulu{border-color:rgba(59,158,255,0.3);background:rgba(59,158,255,0.07);}
+.ozet-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;}
+.ozet-val{font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:var(--text);}
+.ozet-card.vurgulu .ozet-val{color:var(--accent);}
+.ozet-sub{font-size:10px;color:var(--text3);margin-top:3px;}
+
+.chart-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;}
+.chart-legend{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:12px;}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2);}
+.leg-dot{width:10px;height:10px;border-radius:2px;}
+.chart-wrap{position:relative;width:100%;height:200px;}
+
+/* BIRIM FİYAT PANEL */
+.birim-ozet{display:flex;align-items:center;justify-content:space-between;background:var(--bg3);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:14px;}
+.birim-ozet-val{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:var(--accent);}
+.birim-ozet-lbl{font-size:11px;color:var(--text3);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div style="font-size:22px;line-height:1;">🔥🏠🇹🇷</div>
+    <div>
+      <div class="app-title">Doğalgaz <span>Sayaç Takip</span></div>
+      <div class="app-sub">Son okuma + anlık sayaç → tahmini fatura</div>
+    </div>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('sayac',this)">Sayaç Takip</button>
+  <button class="tab-btn" onclick="switchTab('ayar',this)">Ayarlar</button>
+  <button class="tab-btn" onclick="switchTab('gecmis',this)">Geçmiş</button>
+</div>
+
+<main>
+
+  <!-- ════════════════════════════════════════
+       SEKME 1: ANLIK SAYAÇ TAKİP
+  ════════════════════════════════════════ -->
+  <div id="tab-sayac" class="tab-pane active">
+
+    <div id="birim-yok-uyari" class="warn" style="display:none;">
+      Önce <b>Ayarlar</b> sekmesinden birim fiyatı girin.
+    </div>
+
+    <!-- Aktif ay bilgisi -->
+    <div id="aktif-ay-bilgi" class="info" style="display:none;"></div>
+
+    <!-- Endeks girişi -->
+    <div class="card">
+      <div class="card-head">Sayaç Endeksleri</div>
+      <div class="endeks-row">
+        <div>
+          <label class="label">Faturadaki son okuma</label>
+          <input type="number" id="endeks-bas" placeholder="faturadan gir" min="0" max="999" step="0.01" oninput="hesapla()">
+        </div>
+        <div class="endeks-ok">→</div>
+        <div>
+          <label class="label">Sayaçtaki anlık değer</label>
+          <input type="number" id="endeks-anlik" placeholder="sayaçtan gir" min="0" max="999" step="0.01" oninput="hesapla()">
+        </div>
+      </div>
+      <div class="grid2">
+        <div>
+          <label class="label">Ay</label>
+          <select id="kayit-ay" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:'DM Sans',sans-serif;font-size:16px;padding:11px 14px;outline:none;">
+            <option value="0">Ocak</option><option value="1">Şubat</option><option value="2">Mart</option>
+            <option value="3">Nisan</option><option value="4">Mayıs</option><option value="5">Haziran</option>
+            <option value="6">Temmuz</option><option value="7">Ağustos</option><option value="8">Eylül</option>
+            <option value="9">Ekim</option><option value="10">Kasım</option><option value="11">Aralık</option>
+          </select>
+        </div>
+        <div>
+          <label class="label">Yıl</label>
+          <input type="number" id="kayit-yil" min="2020" max="2035" step="1">
+        </div>
+      </div>
+    </div>
+
+    <!-- SONUÇ -->
+    <div class="card" style="margin-bottom:14px;">
+      <div class="card-head">Güvence Bedeli Taksiti <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;background:rgba(224,91,154,0.15);color:#e05b9a;margin-left:6px;">KDV uygulanmaz</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <label class="label">Bu ay taksit var mı?</label>
+          <div class="switch-row">
+            <label class="switch"><input type="checkbox" id="guvence-aktif" onchange="hesapla()"><span class="sw-sl"></span></label>
+            <span class="sw-label" style="font-size:13px;">Evet, bu ay taksit ödüyorum</span>
+          </div>
+        </div>
+        <div id="guvence-tutar-alan" style="display:none;">
+          <label class="label">Taksit tutarı (₺)</label>
+          <input type="number" id="guvence-tutar" placeholder="örn. 540" min="0" step="0.01" oninput="hesapla()">
+        </div>
+      </div>
+    </div>
+
+    <div id="devir-uyari" class="warn" style="display:none;margin-bottom:10px;"></div>
+    <div id="sonuc-panel" style="display:none;">
+      <div class="sonuc-kutu">
+        <div class="sonuc-ust">
+          <div class="s-kart">
+            <div class="s-lbl">Tüketim</div>
+            <div class="s-val blue" id="s-m3">—</div>
+            <div class="s-unit">m³</div>
+          </div>
+          <div class="s-kart">
+            <div class="s-lbl">Tahmini Fatura</div>
+            <div class="s-val green" id="s-toplam">—</div>
+            <div class="s-unit">₺ (KDV dahil)</div>
+          </div>
+        </div>
+        <div class="dokum">
+          <div class="drow"><span class="dk">Tüketim bedeli (vergisiz)</span><span class="dv" id="d-vergisiz">—</span></div>
+          <div class="drow amber"><span class="dk">KDV (%20)</span><span class="dv" id="d-kdv">—</span></div>
+          <div class="drow" id="d-guvence-row" style="display:none;"><span class="dk" style="color:#e05b9a;">Güvence taksiti (KDV'siz)</span><span class="dv" style="color:#e05b9a;" id="d-guvence">—</span></div>
+          <div class="drow toplam-row"><span class="dk">Toplam Fatura Tahmini</span><span class="dv" id="d-toplam">—</span></div>
+        </div>
+      </div>
+      <button class="btn-kaydet" onclick="ayiKaydet()">✓ Bu Ayı Kaydet</button>
+      <div id="kayit-mesaj" style="margin-top:10px;display:none;"></div>
+    </div>
+
+    <div id="sonuc-bos" class="info" style="margin-top:8px;display:none;">
+      Faturadaki son okumayı ve sayaçtaki anlık değeri girin.
+    </div>
+
+  </div>
+
+  <!-- ════════════════════════════════════════
+       SEKME 2: AYARLAR
+  ════════════════════════════════════════ -->
+  <div id="tab-ayar" class="tab-pane">
+
+    <div class="card">
+      <div class="card-head">Birim Fiyat Hesapla</div>
+      <div class="info" style="margin-bottom:14px;">Faturanızdaki <b>vergisiz tüketim bedelini</b> ve o ayki <b>m³</b> miktarını girin.</div>
+      <div class="grid2" style="margin-bottom:12px;">
+        <div>
+          <label class="label">Vergisiz tüketim bedeli (₺)</label>
+          <input type="number" id="ayar-tutar" placeholder="örn. 620.00" min="0" step="0.01" oninput="birimHesapla()">
+        </div>
+        <div>
+          <label class="label">O ayki m³ tüketimi</label>
+          <input type="number" id="ayar-m3" placeholder="örn. 42" min="0" step="0.01" oninput="birimHesapla()">
+        </div>
+      </div>
+      <div id="ayar-birim-sonuc" style="display:none;">
+        <div class="birim-ozet">
+          <div>
+            <div class="birim-ozet-lbl">Hesaplanan birim fiyat</div>
+            <div class="birim-ozet-val" id="ayar-birim-val">—</div>
+          </div>
+          <span class="badge-green">Kaydedildi</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">Ya da Direkt Gir</div>
+      <div>
+        <label class="label">Birim fiyat (₺/m³, vergisiz)</label>
+        <input type="number" id="ayar-birim-direkt" placeholder="örn. 14.7619" min="0" step="0.0001" oninput="birimDirektKaydet()">
+      </div>
+    </div>
+
+    <div id="ayar-ozet" class="card" style="display:none;">
+      <div class="card-head">Mevcut Ayar</div>
+      <div class="birim-ozet">
+        <div>
+          <div class="birim-ozet-lbl">Kayıtlı birim fiyat (₺/m³, vergisiz)</div>
+          <div class="birim-ozet-val" id="ayar-kayitli-val">—</div>
+        </div>
+        <button class="btn-reset" onclick="birimSifirla()">Sıfırla</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ════════════════════════════════════════
+       SEKME 3: GEÇMİŞ
+  ════════════════════════════════════════ -->
+  <div id="tab-gecmis" class="tab-pane">
+
+    <div class="yil-sec">
+      <button class="yil-btn" onclick="yilDegistir(-1)">‹</button>
+      <div class="yil-label-el" id="gecmis-yil-label">2025</div>
+      <button class="yil-btn" onclick="yilDegistir(1)">›</button>
+    </div>
+
+    <div id="gecmis-bos" class="warn" style="display:none;">Bu yıl için henüz kayıt yok.</div>
+
+    <div id="gecmis-icerik" style="display:none;">
+      <div class="ozet-grid" id="gecmis-ozet-kartlar"></div>
+
+      <div class="card-head" style="margin-bottom:10px;">Aylık tüketim</div>
+      <div class="chart-card" style="margin-bottom:16px;">
+        <div class="chart-legend" id="gecmis-legend"></div>
+        <div class="chart-wrap"><canvas id="gecmisChart"></canvas></div>
+      </div>
+
+      <div class="card-head" style="margin-bottom:10px;">Ay detayları</div>
+      <div id="gecmis-ay-listesi"></div>
+    </div>
+
+  </div>
+
+</main>
+
+<script>
+const AYLAR=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+let aktifYil = new Date().getFullYear();
+let chartGecmis = null;
+
+/* ── VERİ ── */
+function veriYukle(){ try{return JSON.parse(localStorage.getItem('dgf_v5')||'{}');}catch(e){return {};} }
+function kaydet(){ localStorage.setItem('dgf_v5', JSON.stringify(veri)); }
+let veri = veriYukle();
+if(!veri.kayitlar) veri.kayitlar={};
+
+/* ── BAŞLANGIÇ ── */
+window.onload = function(){
+  // Ay/yıl seçiciyi bugüne ayarla
+  const bugun = new Date();
+  document.getElementById('kayit-ay').value = bugun.getMonth();
+  document.getElementById('kayit-yil').value = bugun.getFullYear();
+  document.getElementById('gecmis-yil-label').textContent = aktifYil;
+
+  // Ayar sekmesini doldur
+  if(veri.birim){
+    document.getElementById('ayar-birim-direkt').value = veri.birim.toFixed(4);
+    ayarOzetGoster();
+  }
+
+  aktifAyBilgisi();
+  sonucBosGoster();
+};
+
+/* ── SEKME ── */
+function switchTab(id,el){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  if(el) el.classList.add('active');
+  if(id==='gecmis') gecmisGuncelle();
+  if(id==='sayac') aktifAyBilgisi();
+}
+
+/* ── AKTİF AY BİLGİSİ ── */
+function aktifAyBilgisi(){
+  const uyariEl = document.getElementById('birim-yok-uyari');
+  const bilgiEl = document.getElementById('aktif-ay-bilgi');
+  if(!veri.birim){ uyariEl.style.display='block'; bilgiEl.style.display='none'; return; }
+  uyariEl.style.display='none';
+  const ay = parseInt(document.getElementById('kayit-ay')?.value||new Date().getMonth());
+  const yil = parseInt(document.getElementById('kayit-yil')?.value||new Date().getFullYear());
+  const key = yil+'_'+ay;
+  if(veri.kayitlar[key]){
+    const k=veri.kayitlar[key];
+    bilgiEl.style.display='block';
+    bilgiEl.textContent=`${AYLAR[ay]} ${yil} — daha önce kaydedildi: ${k.m3.toFixed(2)} m³ · ${k.kdvli.toFixed(2)} ₺`;
+  } else {
+    bilgiEl.style.display='none';
+  }
+}
+
+/* ── HESAPLA ── */
+function hesapla(){
+  const bas = parseFloat(document.getElementById('endeks-bas').value);
+  const anlik = parseFloat(document.getElementById('endeks-anlik').value);
+  const panel = document.getElementById('sonuc-panel');
+  const bosEl = document.getElementById('sonuc-bos');
+
+  if(!bas && !anlik){ panel.style.display='none'; bosEl.style.display='block'; return; }
+  if(!bas || !anlik){
+    panel.style.display='none';
+    bosEl.style.display='block';
+    bosEl.textContent='Faturadaki son okumayı ve sayaçtaki anlık değeri girin.';
+    return;
+  }
+
+  bosEl.style.display='none';
+  const birim = veri.birim||0;
+
+  // Güvence toggle — önce hesaplanmalı
+  const guvenceAktif = document.getElementById('guvence-aktif').checked;
+  const guvenceTutarAlan = document.getElementById('guvence-tutar-alan');
+  if(guvenceTutarAlan) guvenceTutarAlan.style.display = guvenceAktif ? 'block' : 'none';
+  const guvence = guvenceAktif ? (parseFloat(document.getElementById('guvence-tutar').value)||0) : 0;
+
+  // Sayaç devri: anlık < başlangıç ise sayaç 999'dan 000'a dönmüş demektir
+  const devir = anlik < bas;
+  const m3 = !devir ? anlik - bas : (1000 - bas) + anlik;
+  const vergisiz = m3 * birim;
+  const kdv = vergisiz * 0.2;
+  const toplam = vergisiz + kdv + guvence;
+  document.getElementById('s-m3').textContent = m3.toFixed(2);
+  document.getElementById('s-toplam').textContent = birim>0 ? toplam.toFixed(2) : '—';
+  document.getElementById('d-vergisiz').textContent = birim>0 ? vergisiz.toFixed(2)+' ₺' : '— (birim fiyat girilmedi)';
+  document.getElementById('d-kdv').textContent = birim>0 ? kdv.toFixed(2)+' ₺' : '—';
+  // Güvence satırı
+  const dGuvEl = document.getElementById('d-guvence-row');
+  if(dGuvEl) dGuvEl.style.display = guvence>0 ? 'flex' : 'none';
+  const dGuvVal = document.getElementById('d-guvence');
+  if(dGuvVal) dGuvVal.textContent = guvence.toFixed(2)+' ₺';
+  document.getElementById('d-toplam').textContent = birim>0 ? toplam.toFixed(2)+' ₺' : '—';
+  const devirEl = document.getElementById('devir-uyari');
+  if(devirEl){ if(devir){ devirEl.style.display='block'; devirEl.textContent='Sayaç devri algılandı: (1000 - '+bas+') + '+anlik+' = '+m3.toFixed(2)+' m³'; } else { devirEl.style.display='none'; } }
+  panel.style.display='block';
+  if(!birim) document.getElementById('birim-yok-uyari').style.display='block';
+}
+
+function sonucBosGoster(){
+  document.getElementById('sonuc-bos').style.display='block';
+  document.getElementById('sonuc-bos').textContent='Faturadaki son okumayı ve sayaçtaki anlık değeri girin.';
+}
+
+/* ── AYI KAYDET ── */
+function ayiKaydet(){
+  const bas = parseFloat(document.getElementById('endeks-bas').value);
+  const anlik = parseFloat(document.getElementById('endeks-anlik').value);
+  const ay = parseInt(document.getElementById('kayit-ay').value);
+  const yil = parseInt(document.getElementById('kayit-yil').value);
+  const birim = veri.birim||0;
+  if(!bas||!anlik||!birim) return;
+
+  const m3 = anlik >= bas ? anlik - bas : (1000 - bas) + anlik;
+  const guvenceKayit = document.getElementById('guvence-aktif').checked ? (parseFloat(document.getElementById('guvence-tutar').value)||0) : 0;
+  const vergisiz = m3*birim;
+  const kdv = vergisiz*0.2;
+  const kdvli = vergisiz+kdv+guvenceKayit;
+  const key = yil+'_'+ay;
+
+  veri.kayitlar[key] = { endeksBas:bas, endeksAnlik:anlik, m3, vergisiz, kdv, guvence:guvenceKayit, kdvli, tarih: new Date().toLocaleDateString('tr-TR') };
+  kaydet();
+
+  const mesajEl = document.getElementById('kayit-mesaj');
+  mesajEl.className='success';
+  mesajEl.style.display='block';
+  mesajEl.textContent=`✓ ${AYLAR[ay]} ${yil} kaydedildi — ${m3.toFixed(2)} m³ · ${kdvli.toFixed(2)} ₺`;
+  aktifAyBilgisi();
+}
+
+/* ── AYARLAR ── */
+function birimHesapla(){
+  const t=parseFloat(document.getElementById('ayar-tutar').value);
+  const m=parseFloat(document.getElementById('ayar-m3').value);
+  if(!t||!m||m===0){document.getElementById('ayar-birim-sonuc').style.display='none';return;}
+  veri.birim=t/m; kaydet();
+  document.getElementById('ayar-birim-val').textContent=veri.birim.toFixed(4)+' ₺/m³';
+  document.getElementById('ayar-birim-sonuc').style.display='block';
+  document.getElementById('ayar-birim-direkt').value=veri.birim.toFixed(4);
+  ayarOzetGoster(); hesapla();
+}
+function birimDirektKaydet(){
+  const v=parseFloat(document.getElementById('ayar-birim-direkt').value);
+  if(!v||v===0) return;
+  veri.birim=v; kaydet();
+  ayarOzetGoster(); hesapla();
+}
+function ayarOzetGoster(){
+  const el=document.getElementById('ayar-ozet');
+  const uyariEl=document.getElementById('birim-yok-uyari');
+  if(veri.birim){
+    el.style.display='block';
+    document.getElementById('ayar-kayitli-val').textContent=veri.birim.toFixed(4)+' ₺/m³';
+    uyariEl.style.display='none';
+  } else { el.style.display='none'; }
+}
+function birimSifirla(){
+  veri.birim=null; kaydet();
+  document.getElementById('ayar-tutar').value='';
+  document.getElementById('ayar-m3').value='';
+  document.getElementById('ayar-birim-direkt').value='';
+  document.getElementById('ayar-birim-sonuc').style.display='none';
+  document.getElementById('ayar-ozet').style.display='none';
+  document.getElementById('birim-yok-uyari').style.display='block';
+}
+
+/* ── YIL ── */
+function yilDegistir(f){
+  aktifYil+=f;
+  document.getElementById('gecmis-yil-label').textContent=aktifYil;
+  if(document.getElementById('tab-gecmis').classList.contains('active')) gecmisGuncelle();
+}
+
+/* ── GEÇMİŞ ── */
+function gecmisGuncelle(){
+  const bosEl=document.getElementById('gecmis-bos');
+  const icerikEl=document.getElementById('gecmis-icerik');
+
+  let topM3=0,topKdvsiz=0,topKdvli=0,girilmis=0;
+  AYLAR.forEach((_,i)=>{
+    const k=veri.kayitlar[aktifYil+'_'+i];
+    if(k){ topM3+=k.m3; topKdvsiz+=k.vergisiz; topKdvli+=k.kdvli; girilmis++; }
+  });
+
+  if(girilmis===0){bosEl.style.display='block';icerikEl.style.display='none';return;}
+  bosEl.style.display='none'; icerikEl.style.display='block';
+
+  // Özet kartlar
+  document.getElementById('gecmis-ozet-kartlar').innerHTML=`
+    <div class="ozet-card"><div class="ozet-lbl">Toplam m³</div><div class="ozet-val">${topM3.toFixed(1)}</div><div class="ozet-sub">${girilmis} ay kayıtlı</div></div>
+    <div class="ozet-card"><div class="ozet-lbl">Toplam vergisiz</div><div class="ozet-val">${topKdvsiz.toFixed(0)} ₺</div><div class="ozet-sub">KDV hariç</div></div>
+    <div class="ozet-card vurgulu"><div class="ozet-lbl">Toplam KDV dahil</div><div class="ozet-val">${topKdvli.toFixed(0)} ₺</div><div class="ozet-sub">%20 KDV ile</div></div>
+    <div class="ozet-card"><div class="ozet-lbl">Aylık ort. m³</div><div class="ozet-val">${(topM3/girilmis).toFixed(1)}</div><div class="ozet-sub">ortalama</div></div>
+    <div class="ozet-card"><div class="ozet-lbl">Aylık ort. fatura</div><div class="ozet-val">${(topKdvli/girilmis).toFixed(0)} ₺</div><div class="ozet-sub">KDV dahil</div></div>
+    <div class="ozet-card"><div class="ozet-lbl">En yüksek ay</div><div class="ozet-val">${enYuksekAy()}</div><div class="ozet-sub">m³</div></div>
+  `;
+
+  // Grafik
+  const labels=AYLAR.map(a=>a.substring(0,3));
+  const m3D=AYLAR.map((_,i)=>{ const k=veri.kayitlar[aktifYil+'_'+i]; return k?parseFloat(k.m3.toFixed(2)):0; });
+  const kdvliD=AYLAR.map((_,i)=>{ const k=veri.kayitlar[aktifYil+'_'+i]; return k?parseFloat(k.kdvli.toFixed(2)):0; });
+
+  const ctx=document.getElementById('gecmisChart').getContext('2d');
+  if(chartGecmis) chartGecmis.destroy();
+  chartGecmis=new Chart(ctx,{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:'Fatura (KDV dahil, ₺)',data:kdvliD,backgroundColor:'#3b9eff',borderRadius:4,yAxisID:'y1'},
+      {label:'Tüketim (m³)',data:m3D,backgroundColor:'rgba(46,204,138,0.3)',borderRadius:4,yAxisID:'y2',type:'line',fill:false,borderColor:'#2ecc8a',borderWidth:2,pointBackgroundColor:'#2ecc8a',pointRadius:3,tension:0.3}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:'#4d6a84',font:{size:10},autoSkip:false,maxRotation:0},grid:{display:false}},
+        y1:{position:'left',ticks:{color:'#4d6a84',font:{size:10},callback:v=>v+'₺'},grid:{color:'rgba(59,158,255,0.07)'}},
+        y2:{position:'right',ticks:{color:'#2ecc8a',font:{size:10},callback:v=>v+'m³'},grid:{display:false}}
+      }}
+  });
+  document.getElementById('gecmis-legend').innerHTML=`
+    <div class="leg"><div class="leg-dot" style="background:#3b9eff"></div>Fatura (₺)</div>
+    <div class="leg"><div class="leg-dot" style="background:#2ecc8a"></div>Tüketim (m³)</div>
+  `;
+
+  // Ay detayları
+  let html='';
+  AYLAR.forEach((ay,i)=>{
+    const k=veri.kayitlar[aktifYil+'_'+i];
+    if(k){
+      html+=`<div class="ay-satir kayitli">
+        <div class="ay-basi"><span class="ay-adi">${ay} ${aktifYil}</span><span class="ay-durum kayitli">Kayıtlı</span></div>
+        <div class="ay-icerik">
+          <div class="ay-bilgi"><div class="ay-bilgi-lbl">Ay başı</div><div class="ay-bilgi-val">${k.endeksBas.toFixed(2)}</div></div>
+          <div class="ay-bilgi"><div class="ay-bilgi-lbl">Ay sonu</div><div class="ay-bilgi-val">${k.endeksAnlik.toFixed(2)}</div></div>
+          <div class="ay-bilgi"><div class="ay-bilgi-lbl">Tüketim</div><div class="ay-bilgi-val accent">${k.m3.toFixed(2)} m³</div></div>
+          <div class="ay-bilgi"><div class="ay-bilgi-lbl">Vergisiz</div><div class="ay-bilgi-val">${k.vergisiz.toFixed(2)} ₺</div></div>
+          <div class="ay-bilgi"><div class="ay-bilgi-lbl">KDV (%20)</div><div class="ay-bilgi-val">${k.kdv.toFixed(2)} ₺</div></div>
+          <div class="ay-bilgi"><div class="ay-bilgi-lbl">Toplam fatura</div><div class="ay-bilgi-val green">${k.kdvli.toFixed(2)} ₺</div></div>
+        </div>
+        <div style="text-align:right;margin-top:8px;"><button class="btn-reset" style="font-size:11px;padding:4px 10px;" onclick="kayitSil(${i})">Sil</button></div>
+      </div>`;
+    } else {
+      html+=`<div class="ay-satir">
+        <div class="ay-basi"><span class="ay-adi">${ay} ${aktifYil}</span><span class="ay-durum bos">Kayıt yok</span></div>
+      </div>`;
+    }
+  });
+  document.getElementById('gecmis-ay-listesi').innerHTML=html;
+}
+
+function enYuksekAy(){
+  let max=0;
+  AYLAR.forEach((_,i)=>{ const k=veri.kayitlar[aktifYil+'_'+i]; if(k&&k.m3>max) max=k.m3; });
+  return max>0?max.toFixed(1):'—';
+}
+
+function kayitSil(ayIdx){
+  const key=aktifYil+'_'+ayIdx;
+  delete veri.kayitlar[key];
+  kaydet();
+  gecmisGuncelle();
+}
+</script>
+</body>
+</html>
