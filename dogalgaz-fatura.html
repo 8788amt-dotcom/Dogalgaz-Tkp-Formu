@@ -20,7 +20,7 @@
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:80px;}
 
 header{background:var(--bg2);border-bottom:1px solid var(--border);padding:16px 20px 12px;position:sticky;top:0;z-index:100;}
-.header-inner{max-width:640px;margin:0 auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.header-inner{max-width:640px;margin:0 auto;display:flex;flex-direction:column;align-items:stretch;gap:0;}
 .app-title{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;}
 .app-title span{color:var(--accent);}
 .app-sub{font-size:11px;color:var(--text3);margin-top:1px;}
@@ -148,16 +148,18 @@ input:checked+.sw-sl:before{transform:translateX(18px);background:#fff;}
 
 <header>
   <div class="header-inner">
-    <div style="font-size:22px;line-height:1;">🔥🏠🇹🇷</div>
-    <div style="flex:1;">
-      <div class="app-title">Doğalgaz <span>Sayaç Takip</span></div>
-      <div class="app-sub">Son okuma + anlık sayaç → tahmini fatura</div>
+    <div style="display:flex;align-items:center;gap:10px;width:100%;margin-bottom:8px;">
+      <div style="font-size:22px;line-height:1;">🔥🏠🇹🇷</div>
+      <div style="flex:1;">
+        <div class="app-title">Doğalgaz <span>Sayaç Takip</span></div>
+        <div class="app-sub">Son okuma + anlık sayaç → tahmini fatura</div>
+      </div>
     </div>
-    <div id="header-info" style="text-align:right;flex-shrink:0;">
-      <div id="saat-tarih" style="font-size:12px;color:var(--text2);font-family:'Syne',sans-serif;font-weight:600;"></div>
-      <div style="display:flex;gap:10px;margin-top:4px;justify-content:flex-end;">
-        <div style="font-size:11px;color:var(--text3);white-space:nowrap;"><span style="opacity:.6">İstanbul</span> <span id="hava-istanbul">—</span></div>
-        <div style="font-size:11px;color:var(--text3);white-space:nowrap;"><span style="opacity:.6">Tuzla</span> <span id="hava-tuzla">—</span></div>
+    <div style="width:100%;display:flex;flex-direction:column;gap:4px;border-top:1px solid var(--border);padding-top:8px;">
+      <div id="saat-tarih" style="font-size:12px;color:var(--text2);font-family:'Syne',sans-serif;font-weight:600;text-align:center;"></div>
+      <div style="display:flex;justify-content:center;gap:16px;flex-wrap:wrap;">
+        <div style="font-size:11px;color:var(--text3);"><span style="opacity:.6">İstanbul</span> <span id="hava-istanbul">—</span></div>
+        <div style="font-size:11px;color:var(--text3);"><span style="opacity:.6">Tuzla</span> <span id="hava-tuzla">—</span></div>
       </div>
     </div>
   </div>
