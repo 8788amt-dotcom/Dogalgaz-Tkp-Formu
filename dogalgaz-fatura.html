@@ -369,7 +369,7 @@ input:checked+.sw-sl:before{transform:translateX(18px);background:#fff;}
 </main>
 
 <script>
-const AYLAR=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+const AYLAR=['Ocak','Subat','Mart','Nisan','Mayis','Haziran','Temmuz','Agustos','Eylul','Ekim','Kasim','Aralik'];
 let aktifYil = new Date().getFullYear();
 let chartGecmis = null;
 
@@ -648,7 +648,7 @@ function pdfRaporOlustur() {
   const ML = 14, MR = 14, MT = 14;
   const IW = W - ML - MR;
 
-  const AYLAR_TR = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+  const AYLAR_TR = ['Ocak','Subat','Mart','Nisan','Mayis','Haziran','Temmuz','Agustos','Eylul','Ekim','Kasim','Aralik'];
 
   // Renkler
   const C = {
@@ -700,17 +700,17 @@ function pdfRaporOlustur() {
 
   let y = MT;
 
-  // ── ARKA PLAN ──
+  // -- ARKA PLAN --
   rect(0, 0, W, H, C.bg);
 
-  // ── BAŞLIK ──
+  // -- BASLIK --
   rect(ML, y, IW, 32, C.bg2);
-  txt('Doğalgaz Sayaç Takip', W/2, y+10, 16, C.text, 'center', true);
-  txt('Yıllık Tüketim ve Fatura Raporu', W/2, y+17, 9, C.text2, 'center');
-  txt(`Rapor tarihi: ${bugun}   |   Birim fiyat: ${birim.toFixed(4)} ₺/m³ (vergisiz)`, W/2, y+24, 7, C.text3, 'center');
+  txt('Dogalgaz Sayac Takip', W/2, y+10, 16, C.text, 'center', true);
+  txt('Yillik Tuketim ve Fatura Raporu', W/2, y+17, 9, C.text2, 'center');
+  txt(`Rapor tarihi: ${bugun}   |   Birim fiyat: ${birim.toFixed(4)} TL/m3 (vergisiz)`, W/2, y+24, 7, C.text3, 'center');
   y += 36;
 
-  // ── ÖZET KARTLAR ──
+  // -- OZET KARTLAR --
   const kw = IW/3 - 2;
   function ozetKart(x, ky, lbl, val, sub, vc) {
     rect(x, ky, kw, 22, C.bg3);
@@ -719,22 +719,22 @@ function pdfRaporOlustur() {
     txt(sub, x+kw/2, ky+19, 6, C.text3, 'center');
   }
 
-  ozetKart(ML,         y, 'TOPLAM TÜKETİM',     `${topM3.toFixed(1)} m³`,       `${aySayisi} ay kayıtlı`,    C.accent);
-  ozetKart(ML+kw+2,    y, 'TÜKETİM BEDELİ',     `${topVrg.toFixed(2)} TL`,      'KDV hariç',                 C.accent);
-  ozetKart(ML+kw*2+4,  y, 'TOPLAM FATURA',       `${topKdvli.toFixed(2)} TL`,    'KDV dahil + güvence',       C.green);
+  ozetKart(ML,         y, 'TOPLAM TUKETIM',     `${topM3.toFixed(1)} m3`,       `${aySayisi} ay kayitli`,    C.accent);
+  ozetKart(ML+kw+2,    y, 'TUKETIM BEDELI',     `${topVrg.toFixed(2)} TL`,      'KDV haric',                 C.accent);
+  ozetKart(ML+kw*2+4,  y, 'TOPLAM FATURA',       `${topKdvli.toFixed(2)} TL`,    'KDV dahil + guvence',       C.green);
   y += 25;
   ozetKart(ML,         y, 'KDV TOPLAMI',          `${topKdv.toFixed(2)} TL`,      '%20 KDV',                   C.amber);
-  ozetKart(ML+kw+2,    y, 'GÜVENCE TAKSİTLERİ',  `${topGuv.toFixed(2)} TL`,      'KDV uygulanmaz',            C.pink);
+  ozetKart(ML+kw+2,    y, 'GUVENCE TAKSITLERI',  `${topGuv.toFixed(2)} TL`,      'KDV uygulanmaz',            C.pink);
   ozetKart(ML+kw*2+4,  y, 'AYLIK ORTALAMA',       `${(topKdvli/aySayisi).toFixed(2)} TL`, 'ortalama fatura', C.green);
   y += 28;
 
-  // ── BÖLÜM BAŞLIĞI ──
-  txt('Ay Ay Detaylı Döküm', ML, y+5, 11, C.accent, 'left', true);
+  // -- BOLUM BASLIGI --
+  txt('Ay Ay Detayli Dokum', ML, y+5, 11, C.accent, 'left', true);
   y += 8;
   line(ML, y, ML+IW, y, C.accent, 0.5);
   y += 5;
 
-  // ── AY SATIRLARI ──
+  // -- AY SATIRLARI --
   sorted.forEach(key => {
     const k = kayitlar[key];
     const [yil, ayIdx] = key.split('_');
@@ -749,13 +749,13 @@ function pdfRaporOlustur() {
 
     // Kalemler - 2 sütun
     const kalemlerin = [
-      ['Başlangıç Endeksi', `${k.endeksBas}`, C.text2],
-      ['Bitiş Endeksi',     `${k.endeksAnlik}`, C.text2],
-      ['Tüketim',           `${k.m3.toFixed(2)} m³`, C.accent],
+      ['Baslangic Endeksi', `${k.endeksBas}`, C.text2],
+      ['Bitis Endeksi',     `${k.endeksAnlik}`, C.text2],
+      ['Tuketim',           `${k.m3.toFixed(2)} m3`, C.accent],
       ['Vergisiz Tutar',    `${k.vergisiz.toFixed(2)} TL`, C.text2],
       ['KDV (%20)',         `${k.kdv.toFixed(2)} TL`, C.amber],
     ];
-    if(guv > 0) kalemlerin.push([`Güvence Taksiti`, `${guv.toFixed(2)} TL`, C.pink]);
+    if(guv > 0) kalemlerin.push(['Guvence Taksiti', `${guv.toFixed(2)} TL`, C.pink]);
     kalemlerin.push(['Toplam Fatura', `${k.kdvli.toFixed(2)} TL`, C.green]);
 
     const satirSayisi = Math.ceil(kalemlerin.length / 2);
@@ -789,11 +789,11 @@ function pdfRaporOlustur() {
 
   y += 4;
 
-  // ── GENEL TOPLAM ──
+  // -- GENEL TOPLAM --
   rect(ML, y, IW, 10, C.navy);
   line(ML, y, ML+IW, y, C.accent, 0.8);
   txt('GENEL TOPLAM', ML+4, y+6.5, 9, C.text, 'left', true);
-  txt(`${topM3.toFixed(1)} m³`, ML+45, y+6.5, 9, C.accent, 'left', true);
+  txt(`${topM3.toFixed(1)} m3`, ML+45, y+6.5, 9, C.accent, 'left', true);
   txt(`Vergisiz: ${topVrg.toFixed(2)} TL`, ML+80, y+6.5, 8, C.text2, 'left');
   txt(`KDV: ${topKdv.toFixed(2)} TL`, ML+122, y+6.5, 8, C.amber, 'left');
   txt(`${topKdvli.toFixed(2)} TL`, ML+IW-4, y+6.5, 10, C.green, 'right', true);
