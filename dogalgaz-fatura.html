@@ -7,6 +7,7 @@
 <title>Doğalgaz Sayaç Takip</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -306,7 +307,7 @@ input:checked+.sw-sl:before{transform:translateX(18px);background:#fff;}
     <div class="card">
       <div class="card-head">Veri Yedekleme</div>
       <p style="font-size:12px;color:var(--text3);margin-bottom:14px;line-height:1.6;">Verilerinizi yedekleyip geri yükleyebilirsiniz. Telefon değişiminde veya tarayıcı temizlendiğinde kullanın.</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
         <button onclick="veriDisaAktar()" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--green);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;padding:12px 10px;cursor:pointer;transition:background .2s;display:flex;align-items:center;justify-content:center;gap:8px;">
           <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M7.5 1v9M4 7l3.5 3.5L11 7M2 12h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           Yedekle
@@ -316,6 +317,10 @@ input:checked+.sw-sl:before{transform:translateX(18px);background:#fff;}
           Geri Yükle
         </button>
       </div>
+      <button onclick="pdfRaporOlustur()" style="width:100%;background:var(--bg3);border:1px solid rgba(245,166,35,0.3);border-radius:var(--radius-sm);color:#f5a623;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;padding:12px 10px;cursor:pointer;transition:background .2s;display:flex;align-items:center;justify-content:center;gap:8px;">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M3 2h7l3 3v9H3V2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M9 2v4h4M5 8h5M5 10.5h5M5 5.5h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        PDF Rapor İndir
+      </button>
       <input type="file" id="veri-yukle-input" accept=".json" style="display:none;" onchange="veriIceAktar(this)">
       <div id="yedek-mesaj" style="display:none;margin-top:10px;"></div>
     </div>
@@ -630,6 +635,179 @@ function kayitSil(ayIdx){
 </script>
 
 <script>
+/* ── PDF RAPOR ── */
+function pdfRaporOlustur() {
+  if(!veri.birim || Object.keys(veri.kayitlar).length === 0) {
+    alert('Rapor oluşturmak için önce birim fiyat ve en az bir aylık kayıt girmelisiniz.');
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const W = 210, H = 297;
+  const ML = 14, MR = 14, MT = 14;
+  const IW = W - ML - MR;
+
+  const AYLAR_TR = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+
+  // Renkler
+  const C = {
+    bg:     [15,25,35],
+    bg2:    [22,33,48],
+    bg3:    [29,45,62],
+    bg4:    [36,52,71],
+    accent: [59,158,255],
+    green:  [46,204,138],
+    amber:  [245,166,35],
+    pink:   [224,91,154],
+    text:   [232,240,248],
+    text2:  [140,168,196],
+    text3:  [77,106,132],
+    navy:   [15,48,80],
+  };
+
+  function setFill(c){ doc.setFillColor(...c); }
+  function setTxt(c){ doc.setTextColor(...c); }
+  function rect(x,y,w,h,c){ setFill(c); doc.rect(x,y,w,h,'F'); }
+  function txt(t,x,y,size,c,align='left',bold=false){
+    doc.setFontSize(size);
+    doc.setFont('helvetica', bold?'bold':'normal');
+    setTxt(c);
+    doc.text(String(t), x, y, {align});
+  }
+  function line(x1,y1,x2,y2,c,lw=0.3){
+    doc.setDrawColor(...c);
+    doc.setLineWidth(lw);
+    doc.line(x1,y1,x2,y2);
+  }
+
+  // Hesaplamalar
+  const kayitlar = veri.kayitlar;
+  const birim = veri.birim;
+  const sorted = Object.keys(kayitlar).sort((a,b)=>{
+    const [ay,ai]=a.split('_').map(Number), [by,bi]=b.split('_').map(Number);
+    return ay*12+ai - (by*12+bi);
+  });
+
+  let topM3=0, topVrg=0, topKdv=0, topGuv=0, topKdvli=0;
+  sorted.forEach(k=>{
+    const r=kayitlar[k];
+    topM3+=r.m3; topVrg+=r.vergisiz; topKdv+=r.kdv;
+    topGuv+=r.guvence||0; topKdvli+=r.kdvli;
+  });
+  const aySayisi = sorted.length;
+  const bugun = new Date().toLocaleDateString('tr-TR');
+
+  let y = MT;
+
+  // ── ARKA PLAN ──
+  rect(0, 0, W, H, C.bg);
+
+  // ── BAŞLIK ──
+  rect(ML, y, IW, 32, C.bg2);
+  txt('Doğalgaz Sayaç Takip', W/2, y+10, 16, C.text, 'center', true);
+  txt('Yıllık Tüketim ve Fatura Raporu', W/2, y+17, 9, C.text2, 'center');
+  txt(`Rapor tarihi: ${bugun}   |   Birim fiyat: ${birim.toFixed(4)} ₺/m³ (vergisiz)`, W/2, y+24, 7, C.text3, 'center');
+  y += 36;
+
+  // ── ÖZET KARTLAR ──
+  const kw = IW/3 - 2;
+  function ozetKart(x, ky, lbl, val, sub, vc) {
+    rect(x, ky, kw, 22, C.bg3);
+    txt(lbl, x+kw/2, ky+5, 6.5, C.text3, 'center', true);
+    txt(val, x+kw/2, ky+13, 11, vc, 'center', true);
+    txt(sub, x+kw/2, ky+19, 6, C.text3, 'center');
+  }
+
+  ozetKart(ML,         y, 'TOPLAM TÜKETİM',     `${topM3.toFixed(1)} m³`,       `${aySayisi} ay kayıtlı`,    C.accent);
+  ozetKart(ML+kw+2,    y, 'TÜKETİM BEDELİ',     `${topVrg.toFixed(2)} TL`,      'KDV hariç',                 C.accent);
+  ozetKart(ML+kw*2+4,  y, 'TOPLAM FATURA',       `${topKdvli.toFixed(2)} TL`,    'KDV dahil + güvence',       C.green);
+  y += 25;
+  ozetKart(ML,         y, 'KDV TOPLAMI',          `${topKdv.toFixed(2)} TL`,      '%20 KDV',                   C.amber);
+  ozetKart(ML+kw+2,    y, 'GÜVENCE TAKSİTLERİ',  `${topGuv.toFixed(2)} TL`,      'KDV uygulanmaz',            C.pink);
+  ozetKart(ML+kw*2+4,  y, 'AYLIK ORTALAMA',       `${(topKdvli/aySayisi).toFixed(2)} TL`, 'ortalama fatura', C.green);
+  y += 28;
+
+  // ── BÖLÜM BAŞLIĞI ──
+  txt('Ay Ay Detaylı Döküm', ML, y+5, 11, C.accent, 'left', true);
+  y += 8;
+  line(ML, y, ML+IW, y, C.accent, 0.5);
+  y += 5;
+
+  // ── AY SATIRLARI ──
+  sorted.forEach(key => {
+    const k = kayitlar[key];
+    const [yil, ayIdx] = key.split('_');
+    const ayAdi = AYLAR_TR[parseInt(ayIdx)] + ' ' + yil;
+    const guv = k.guvence || 0;
+
+    // Ay başlık
+    rect(ML, y, IW, 8, C.bg2);
+    txt(ayAdi, ML+4, y+5.5, 9, C.text, 'left', true);
+    txt(`Toplam: ${k.kdvli.toFixed(2)} TL`, ML+IW-4, y+5.5, 9, C.green, 'right', true);
+    y += 8;
+
+    // Kalemler - 2 sütun
+    const kalemlerin = [
+      ['Başlangıç Endeksi', `${k.endeksBas}`, C.text2],
+      ['Bitiş Endeksi',     `${k.endeksAnlik}`, C.text2],
+      ['Tüketim',           `${k.m3.toFixed(2)} m³`, C.accent],
+      ['Vergisiz Tutar',    `${k.vergisiz.toFixed(2)} TL`, C.text2],
+      ['KDV (%20)',         `${k.kdv.toFixed(2)} TL`, C.amber],
+    ];
+    if(guv > 0) kalemlerin.push([`Güvence Taksiti`, `${guv.toFixed(2)} TL`, C.pink]);
+    kalemlerin.push(['Toplam Fatura', `${k.kdvli.toFixed(2)} TL`, C.green]);
+
+    const satirSayisi = Math.ceil(kalemlerin.length / 2);
+    rect(ML, y, IW, satirSayisi * 8, C.bg3);
+
+    for(let i=0; i<kalemlerin.length; i++) {
+      const [lbl, val, vc] = kalemlerin[i];
+      const col = i < satirSayisi ? 0 : 1;
+      const row = i < satirSayisi ? i : i - satirSayisi;
+      const cx = ML + col * (IW/2) + 4;
+      const cy = y + row * 8 + 5.5;
+      txt(lbl, cx, cy, 7.5, C.text3);
+      txt(val, cx + IW/2 - 8, cy, 8, vc, 'right', true);
+    }
+
+    // Sütun ayracı
+    line(ML+IW/2, y, ML+IW/2, y+satirSayisi*8, C.text3, 0.2);
+    y += satirSayisi * 8;
+
+    // Satır ayracı
+    line(ML, y, ML+IW, y, C.text3, 0.2);
+    y += 4;
+
+    // Sayfa taşması
+    if(y > H - 30) {
+      doc.addPage();
+      rect(0, 0, W, H, C.bg);
+      y = MT;
+    }
+  });
+
+  y += 4;
+
+  // ── GENEL TOPLAM ──
+  rect(ML, y, IW, 10, C.navy);
+  line(ML, y, ML+IW, y, C.accent, 0.8);
+  txt('GENEL TOPLAM', ML+4, y+6.5, 9, C.text, 'left', true);
+  txt(`${topM3.toFixed(1)} m³`, ML+45, y+6.5, 9, C.accent, 'left', true);
+  txt(`Vergisiz: ${topVrg.toFixed(2)} TL`, ML+80, y+6.5, 8, C.text2, 'left');
+  txt(`KDV: ${topKdv.toFixed(2)} TL`, ML+122, y+6.5, 8, C.amber, 'left');
+  txt(`${topKdvli.toFixed(2)} TL`, ML+IW-4, y+6.5, 10, C.green, 'right', true);
+
+  // İndir
+  const dosyaAdi = `dogalgaz-rapor-${bugun.replace(/\./g,'-')}.pdf`;
+  doc.save(dosyaAdi);
+
+  const mesaj = document.getElementById('yedek-mesaj');
+  mesaj.className = 'success';
+  mesaj.style.display = 'block';
+  mesaj.textContent = `✓ ${dosyaAdi} indirildi!`;
+}
+
 /* ── VERİ DIŞA / İÇE AKTAR ── */
 function veriDisaAktar(){
   const yedek = {
