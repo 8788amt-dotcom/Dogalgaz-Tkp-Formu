@@ -275,6 +275,19 @@ input:checked+.sw-sl:before{transform:translateX(18px);background:#fff;}
   <div id="tab-ayar" class="tab-pane">
 
     <div class="card">
+      <div class="card-head">Konum Seçimi</div>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.6;">Hava durumu ve analiz verileri seçilen konuma göre çekilir.</p>
+      <div>
+        <label class="label">Şehir / İlçe</label>
+        <select id="konum-sec" onchange="konumDegistir(this.value)" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;padding:11px 14px;outline:none;"></select>
+      </div>
+      <div id="konum-hava-ozet" style="margin-top:12px;display:none;background:var(--bg3);border-radius:var(--radius-sm);padding:12px 14px;">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:4px;">Seçili konum anlık hava durumu</div>
+        <div id="konum-hava-detay" style="font-size:14px;color:var(--text2);"></div>
+      </div>
+    </div>
+
+    <div class="card">
       <div class="card-head">Birim Fiyat Hesapla</div>
       <div class="info" style="margin-bottom:14px;">Faturanızdaki <b>vergisiz tüketim bedelini</b> ve o ayki <b>m³</b> miktarını girin.</div>
       <div class="grid2" style="margin-bottom:12px;">
@@ -436,6 +449,54 @@ input:checked+.sw-sl:before{transform:translateX(18px);background:#fff;}
 </main>
 
 <script>
+const SEHIRLER = [
+  // İstanbul İlçeleri
+  { ad: 'İstanbul — Tuzla',       lat: 40.8167, lon: 29.3000 },
+  { ad: 'İstanbul — Kadıköy',     lat: 40.9923, lon: 29.0235 },
+  { ad: 'İstanbul — Beşiktaş',    lat: 41.0427, lon: 29.0097 },
+  { ad: 'İstanbul — Üsküdar',     lat: 41.0233, lon: 29.0151 },
+  { ad: 'İstanbul — Fatih',       lat: 41.0186, lon: 28.9397 },
+  { ad: 'İstanbul — Beyoğlu',     lat: 41.0369, lon: 28.9775 },
+  { ad: 'İstanbul — Şişli',       lat: 41.0607, lon: 28.9878 },
+  { ad: 'İstanbul — Bakırköy',    lat: 40.9821, lon: 28.8719 },
+  { ad: 'İstanbul — Avcılar',     lat: 40.9800, lon: 28.7220 },
+  { ad: 'İstanbul — Pendik',      lat: 40.8740, lon: 29.2330 },
+  { ad: 'İstanbul — Maltepe',     lat: 40.9350, lon: 29.1300 },
+  { ad: 'İstanbul — Kartal',      lat: 40.9140, lon: 29.1890 },
+  { ad: 'İstanbul — Sultanbeyli', lat: 40.9614, lon: 29.2697 },
+  { ad: 'İstanbul — Ümraniye',    lat: 41.0165, lon: 29.1235 },
+  { ad: 'İstanbul — Sancaktepe',  lat: 41.0022, lon: 29.2344 },
+  { ad: 'İstanbul — Çekmeköy',    lat: 41.0400, lon: 29.1800 },
+  { ad: 'İstanbul — Sarıyer',     lat: 41.1667, lon: 29.0500 },
+  { ad: 'İstanbul — Beykoz',      lat: 41.1200, lon: 29.1000 },
+  { ad: 'İstanbul — Gaziosmanpaşa', lat: 41.0656, lon: 28.9122 },
+  { ad: 'İstanbul — Esenyurt',    lat: 41.0295, lon: 28.6741 },
+  { ad: 'İstanbul — Başakşehir',  lat: 41.0924, lon: 28.8041 },
+  { ad: 'İstanbul — Arnavutköy',  lat: 41.1853, lon: 28.7397 },
+  { ad: 'İstanbul — Silivri',     lat: 41.0740, lon: 28.2480 },
+  { ad: 'İstanbul — Çatalca',     lat: 41.1434, lon: 28.4617 },
+  // Büyük Şehirler
+  { ad: 'Ankara',      lat: 39.9334, lon: 32.8597 },
+  { ad: 'İzmir',       lat: 38.4192, lon: 27.1287 },
+  { ad: 'Bursa',       lat: 40.1885, lon: 29.0610 },
+  { ad: 'Adana',       lat: 37.0000, lon: 35.3213 },
+  { ad: 'Gaziantep',   lat: 37.0662, lon: 37.3833 },
+  { ad: 'Konya',       lat: 37.8714, lon: 32.4847 },
+  { ad: 'Antalya',     lat: 36.8969, lon: 30.7133 },
+  { ad: 'Kayseri',     lat: 38.7312, lon: 35.4787 },
+  { ad: 'Mersin',      lat: 36.8000, lon: 34.6333 },
+  { ad: 'Eskişehir',   lat: 39.7767, lon: 30.5206 },
+  { ad: 'Diyarbakır',  lat: 37.9144, lon: 40.2306 },
+  { ad: 'Samsun',      lat: 41.2928, lon: 36.3313 },
+  { ad: 'Denizli',     lat: 37.7765, lon: 29.0864 },
+  { ad: 'Şanlıurfa',   lat: 37.1591, lon: 38.7969 },
+  { ad: 'Trabzon',     lat: 41.0015, lon: 39.7178 },
+  { ad: 'Kocaeli',     lat: 40.7654, lon: 29.9408 },
+  { ad: 'Malatya',     lat: 38.3552, lon: 38.3095 },
+  { ad: 'Erzurum',     lat: 39.9043, lon: 41.2679 },
+  { ad: 'Van',         lat: 38.4891, lon: 43.4089 },
+];
+
 const AYLAR=['Ocak','Subat','Mart','Nisan','Mayis','Haziran','Temmuz','Agustos','Eylul','Ekim','Kasim','Aralik'];
 let aktifYil = new Date().getFullYear();
 let chartGecmis = null;
@@ -447,6 +508,7 @@ let veri = veriYukle();
 if(!veri.kayitlar) veri.kayitlar={};
 if(!veri.sicakliklar) veri.sicakliklar={};
 if(!veri.fiyatGecmisi) veri.fiyatGecmisi=[];
+if(!veri.konumIdx) veri.konumIdx=0; // varsayılan: Tuzla
 
 /* ── BAŞLANGIÇ ── */
 window.onload = function(){
@@ -466,6 +528,7 @@ window.onload = function(){
   aktifAyBilgisi();
   sonucBosGoster();
   fiyatGecmisiGuncelle();
+  konumSeciciDoldur();
 };
 
 /* ── SEKME ── */
@@ -592,7 +655,8 @@ async function aylikOrtalamaSecaklikCek(yil, ay, key) {
     let url;
     if(istekAy <= bugun) {
       // Geçmiş veya bu ay - historical data
-      url = `https://api.open-meteo.com/v1/forecast?latitude=40.8167&longitude=29.3000&daily=temperature_2m_mean&start_date=${ilkGun}&end_date=${sonGunStr}&timezone=Europe%2FIstanbul`;
+      const secilenKonum = SEHIRLER[veri.konumIdx||0];
+    url = `https://api.open-meteo.com/v1/forecast?latitude=${secilenKonum.lat}&longitude=${secilenKonum.lon}&daily=temperature_2m_mean&start_date=${ilkGun}&end_date=${sonGunStr}&timezone=Europe%2FIstanbul`;
     } else {
       return; // Gelecek ay için sıcaklık çekme
     }
@@ -1185,6 +1249,102 @@ function pdfRaporOlustur() {
   txt(`KDV: ${topKdv.toFixed(2)} TL`, ML+122, y+6.5, 8, C.amber, 'left');
   txt(`${topKdvli.toFixed(2)} TL`, ML+IW-4, y+6.5, 10, C.green, 'right', true);
 
+  // -- ANALİZ SAYFASI --
+  const analizVeri = [];
+  const AYLAR_AN = ['Ocak','Subat','Mart','Nisan','Mayis','Haziran','Temmuz','Agustos','Eylul','Ekim','Kasim','Aralik'];
+  sorted.forEach(key => {
+    const [ky, ki] = key.split('_');
+    const sic = veri.sicakliklar ? veri.sicakliklar[key] : undefined;
+    if(sic !== undefined) {
+      analizVeri.push({ ay: AYLAR_AN[parseInt(ki)]+' '+ky, m3: kayitlar[key].m3, sic, fatura: kayitlar[key].kdvli });
+    }
+  });
+
+  if(analizVeri.length >= 2) {
+    doc.addPage();
+    rect(0, 0, W, H, C.bg);
+    y = MT;
+
+    // Analiz başlık
+    rect(ML, y, IW, 18, C.bg2);
+    txt('Sicaklik - Tuketim Analizi', W/2, y+8, 13, C.text, 'center', true);
+    txt('Tuza / Istanbul | Open-Meteo verileri', W/2, y+14, 7, C.text3, 'center');
+    y += 22;
+
+    // Analiz tablosu başlık
+    const aw = [IW*0.22, IW*0.19, IW*0.19, IW*0.19, IW*0.21];
+    const ax = [ML, ML+aw[0], ML+aw[0]+aw[1], ML+aw[0]+aw[1]+aw[2], ML+aw[0]+aw[1]+aw[2]+aw[3]];
+
+    rect(ML, y, IW, 8, C.orta||C.bg2);
+    ['AY', 'SICAKLIK (C)', 'TUKETIM (m3)', 'FATURA (TL)', 'YORUM'].forEach((h, i) => {
+      txt(h, ax[i]+aw[i]/2, y+5.5, 7, C.text3, 'center', true);
+    });
+    line(ML, y+8, ML+IW, y+8, C.accent, 0.5);
+    y += 8;
+
+    analizVeri.forEach((d, idx) => {
+      const bgC = idx%2===0 ? C.bg3 : C.bg4;
+      rect(ML, y, IW, 8, bgC);
+
+      // Sıcaklık rengi
+      const sicRenk = d.sic <= 5 ? C.accent : d.sic <= 15 ? C.green : C.amber;
+      const yorum = d.sic <= 3 ? 'Cok soguk' : d.sic <= 10 ? 'Soguk' : d.sic <= 18 ? 'Iliman' : d.sic <= 25 ? 'Sicak' : 'Cok sicak';
+
+      txt(d.ay,         ax[0]+4,        y+5.5, 8, C.text,   'left',   true);
+      txt(`${d.sic}°C`, ax[1]+aw[1]/2,  y+5.5, 8, sicRenk,  'center', true);
+      txt(`${d.m3.toFixed(1)} m3`, ax[2]+aw[2]/2, y+5.5, 8, C.accent, 'center', true);
+      txt(`${d.fatura.toFixed(2)}`, ax[3]+aw[3]/2, y+5.5, 8, C.green, 'center', true);
+      txt(yorum,        ax[4]+aw[4]/2,  y+5.5, 7, sicRenk,  'center');
+      line(ML, y+8, ML+IW, y+8, C.text3, 0.15);
+      y += 8;
+    });
+
+    y += 10;
+
+    // Korelasyon analizi
+    const avgSic = analizVeri.reduce((s,d)=>s+d.sic,0)/analizVeri.length;
+    const avgM3  = analizVeri.reduce((s,d)=>s+d.m3, 0)/analizVeri.length;
+    let cov=0,varSic=0,varM3=0;
+    analizVeri.forEach(d=>{
+      cov+=(d.sic-avgSic)*(d.m3-avgM3);
+      varSic+=(d.sic-avgSic)**2;
+      varM3+=(d.m3-avgM3)**2;
+    });
+    const kor = varSic*varM3>0 ? cov/Math.sqrt(varSic*varM3) : 0;
+    const enSoguk = analizVeri.reduce((a,b)=>a.sic<b.sic?a:b);
+    const enSicak = analizVeri.reduce((a,b)=>a.sic>b.sic?a:b);
+    const enCok   = analizVeri.reduce((a,b)=>a.m3>b.m3?a:b);
+    const enAz    = analizVeri.reduce((a,b)=>a.m3<b.m3?a:b);
+
+    // Özet kartlar - analiz
+    const ak = IW/3 - 2;
+    function analizKart(x, ky, lbl, val, vc) {
+      rect(x, ky, ak, 18, C.bg3);
+      txt(lbl, x+ak/2, ky+5, 6, C.text3, 'center', true);
+      txt(val, x+ak/2, ky+13, 9, vc, 'center', true);
+    }
+    analizKart(ML,        y, 'EN SOGUK AY',   `${enSoguk.ay} (${enSoguk.sic}C)`, C.accent);
+    analizKart(ML+ak+2,   y, 'EN FAZLA YAKIT',`${enCok.ay} (${enCok.m3.toFixed(0)} m3)`, C.red||[255,92,92]);
+    analizKart(ML+ak*2+4, y, 'KORELASYON',    kor.toFixed(2), kor<-0.5?C.green:C.amber);
+    y += 22;
+    analizKart(ML,        y, 'EN SICAK AY',   `${enSicak.ay} (${enSicak.sic}C)`, C.amber);
+    analizKart(ML+ak+2,   y, 'EN AZ YAKIT',   `${enAz.ay} (${enAz.m3.toFixed(0)} m3)`, C.green);
+    analizKart(ML+ak*2+4, y, 'ORT. SICAKLIK', `${avgSic.toFixed(1)}C`, C.text2);
+    y += 26;
+
+    // Yorum kutusu
+    rect(ML, y, IW, 22, C.navy);
+    line(ML, y, ML+IW, y, C.accent, 0.8);
+    txt('ANALIZ SONUCU:', ML+4, y+6, 8, C.accent, 'left', true);
+    let yorumTxt = '';
+    if(kor < -0.5) yorumTxt = `Guclu ters iliski (${kor.toFixed(2)}): Soguk havalarda tuketim belirgin artis gosteriyor.`;
+    else if(kor < -0.2) yorumTxt = `Zayif ters iliski (${kor.toFixed(2)}): Soguk havalarda hafif tuketim artisi var.`;
+    else yorumTxt = `Belirgin iliski yok (${kor.toFixed(2)}): Sicaklik ile tuketim arasindan guclu bag gorulmuyor.`;
+    txt(yorumTxt, ML+4, y+13, 7.5, C.text2, 'left');
+    txt(`En soguk: ${enSoguk.ay} ${enSoguk.sic}C → ${enSoguk.m3.toFixed(1)} m3 | En sicak: ${enSicak.ay} ${enSicak.sic}C → ${enSicak.m3.toFixed(1)} m3`, ML+4, y+19, 7, C.text3, 'left');
+    y += 28;
+  }
+
   // İndir
   const dosyaAdi = `dogalgaz-rapor-${bugun.replace(/\./g,'-')}.pdf`;
   doc.save(dosyaAdi);
@@ -1291,23 +1451,70 @@ async function havaDurumunuCek(lat, lon, elId){
     const kod = data.current.weathercode;
     const emoji = HAVA_EMOJI[kod] || '🌡️';
     const durum = HAVA_KODLARI[kod] || '';
-    document.getElementById(elId).textContent = `${emoji} ${temp}°C (hissedilen ${hissedilen}°C) ${durum}`;
-    document.getElementById(elId).style.color = 'var(--text2)';
+    const el = document.getElementById(elId);
+    if(el){ el.textContent = `${emoji} ${temp}°C (hissedilen ${hissedilen}°C) ${durum}`; el.style.color='var(--text2)'; }
+    return {temp, hissedilen, durum, emoji};
   } catch(e) {
-    document.getElementById(elId).textContent = '— bağlanılamadı';
+    const el = document.getElementById(elId);
+    if(el) el.textContent = '— bağlanılamadı';
+    return null;
   }
 }
 
-// İstanbul merkez
-havaDurumunuCek(41.0082, 28.9784, 'hava-istanbul');
-// Tuzla
-havaDurumunuCek(40.8167, 29.3000, 'hava-tuzla');
+function konumSeciciDoldur(){
+  const sel = document.getElementById('konum-sec');
+  if(!sel) return;
+  sel.innerHTML = SEHIRLER.map((s,i) => `<option value="${i}"${i===veri.konumIdx?' selected':''}>${s.ad}</option>`).join('');
+  konumHavaDurumunuGoster();
+  headerHavaDurumunuGuncelle();
+}
+
+async function konumHavaDurumunuGoster(){
+  const konum = SEHIRLER[veri.konumIdx||0];
+  const ozet = document.getElementById('konum-hava-ozet');
+  const detay = document.getElementById('konum-hava-detay');
+  if(!ozet||!detay) return;
+  ozet.style.display='block';
+  detay.textContent='Yükleniyor...';
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${konum.lat}&longitude=${konum.lon}&current=temperature_2m,apparent_temperature,weathercode&timezone=Europe%2FIstanbul`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const temp = Math.round(data.current.temperature_2m);
+    const his  = Math.round(data.current.apparent_temperature);
+    const kod  = data.current.weathercode;
+    const emoji = HAVA_EMOJI[kod]||'🌡️';
+    const durum = HAVA_KODLARI[kod]||'';
+    detay.innerHTML = `<span style="font-size:18px;">${emoji}</span> <span style="font-weight:500;color:var(--text);">${temp}°C</span> <span style="font-size:12px;color:var(--text3);">hissedilen ${his}°C · ${durum}</span>`;
+  } catch(e) { detay.textContent='Bağlanılamadı'; }
+}
+
+function headerHavaDurumunuGuncelle(){
+  const konum = SEHIRLER[veri.konumIdx||0];
+  // Header'daki İstanbul + Tuzla yazısını seçili konuma göre güncelle
+  havaDurumunuCek(41.0082, 28.9784, 'hava-istanbul');
+  havaDurumunuCek(konum.lat, konum.lon, 'hava-tuzla');
+  // Tuzla label güncelle
+  const tuzlaLbl = document.querySelector('#hava-tuzla').previousElementSibling;
+  if(tuzlaLbl) tuzlaLbl.textContent = konum.ad.split('—')[1]?.trim() || konum.ad;
+}
+
+function konumDegistir(idx){
+  veri.konumIdx = parseInt(idx);
+  kaydet();
+  konumHavaDurumunuGoster();
+  headerHavaDurumunuGuncelle();
+  // Sıcaklık verilerini yeni konuma göre sıfırla ve yeniden çek
+  veri.sicakliklar = {};
+  kaydet();
+  if(document.getElementById('tab-analiz').classList.contains('active')) analizGuncelle();
+}
+
+// Başlangıçta header'ı yükle
+headerHavaDurumunuGuncelle();
 
 // Her 10 dakikada bir güncelle
-setInterval(()=>{
-  havaDurumunuCek(41.0082, 28.9784, 'hava-istanbul');
-  havaDurumunuCek(40.8167, 29.3000, 'hava-tuzla');
-}, 600000);
+setInterval(()=>{ headerHavaDurumunuGuncelle(); }, 600000);
 </script>
 </body>
 </html>
