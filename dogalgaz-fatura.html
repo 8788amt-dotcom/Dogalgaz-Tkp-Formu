@@ -170,6 +170,8 @@ input:checked+.sw-sl:before{transform:translateX(18px);background:#fff;}
   <button class="tab-btn active" onclick="switchTab('sayac',this)">Sayaç Takip</button>
   <button class="tab-btn" onclick="switchTab('ayar',this)">Ayarlar</button>
   <button class="tab-btn" onclick="switchTab('gecmis',this)">Geçmiş</button>
+  <button class="tab-btn" onclick="switchTab('analiz',this)">🌡️ Analiz</button>
+  <button class="tab-btn" onclick="switchTab('fiyat',this)">💡 Fiyat Geçmişi</button>
 </div>
 
 <main>
@@ -366,6 +368,71 @@ input:checked+.sw-sl:before{transform:translateX(18px);background:#fff;}
 
   </div>
 
+
+  <!-- ════════════════════════════════════════
+       SEKME 4: HAVA + TÜKETİM ANALİZİ
+  ════════════════════════════════════════ -->
+  <div id="tab-analiz" class="tab-pane">
+
+    <div class="info" style="margin-bottom:14px;">
+      Ay kaydedildiğinde o ayın <b>ortalama sıcaklığı</b> Tuzla için Open-Meteo'dan otomatik çekilir ve tüketimle karşılaştırılır. İsterseniz sıcaklığı manuel olarak düzenleyebilirsiniz.
+    </div>
+
+    <div class="yil-sec">
+      <button class="yil-btn" onclick="analizYilDegistir(-1)">‹</button>
+      <div class="yil-label-el" id="analiz-yil-label">2026</div>
+      <button class="yil-btn" onclick="analizYilDegistir(1)">›</button>
+    </div>
+
+    <div id="analiz-bos" class="warn" style="display:none;">Bu yıl için kayıt bulunamadı.</div>
+
+    <div id="analiz-icerik" style="display:none;">
+
+      <div class="card-head" style="margin-bottom:10px;">Sıcaklık — Tüketim İlişkisi</div>
+      <div class="chart-card" style="margin-bottom:16px;">
+        <div class="chart-legend" id="analiz-legend"></div>
+        <div class="chart-wrap" style="height:220px;"><canvas id="analizChart"></canvas></div>
+      </div>
+
+      <div id="analiz-yorum" class="card" style="display:none;">
+        <div class="card-head">Analiz Yorumu</div>
+        <div id="analiz-yorum-metin" style="font-size:13px;color:var(--text2);line-height:1.7;"></div>
+      </div>
+
+      <div class="card-head" style="margin-bottom:10px;margin-top:16px;">Aylık Sıcaklık Verileri <span style="font-size:10px;font-weight:400;color:var(--text3);margin-left:6px;">otomatik · düzenlenebilir</span></div>
+      <div id="sicaklik-liste"></div>
+    </div>
+
+  </div>
+
+  <!-- ════════════════════════════════════════
+       SEKME 5: BİRİM FİYAT GEÇMİŞİ
+  ════════════════════════════════════════ -->
+  <div id="tab-fiyat" class="tab-pane">
+
+    <div class="info" style="margin-bottom:14px;">
+      Birim fiyat her güncellendiğinde otomatik kaydedilir. Zam tarihlerini ve fiyat değişimlerini buradan takip edebilirsiniz.
+    </div>
+
+    <div class="card">
+      <div class="card-head">Mevcut Birim Fiyat</div>
+      <div id="fiyat-mevcut" style="font-size:13px;color:var(--text2);">Henüz fiyat girilmemiş.</div>
+    </div>
+
+    <div id="fiyat-gecmis-bos" class="warn" style="display:none;">Henüz fiyat geçmişi yok.</div>
+
+    <div id="fiyat-gecmis-icerik" style="display:none;">
+      <div class="card-head" style="margin-bottom:10px;">Fiyat Değişim Grafiği</div>
+      <div class="chart-card" style="margin-bottom:16px;">
+        <div class="chart-wrap" style="height:180px;"><canvas id="fiyatChart"></canvas></div>
+      </div>
+
+      <div class="card-head" style="margin-bottom:10px;">Fiyat Geçmişi</div>
+      <div id="fiyat-liste"></div>
+    </div>
+
+  </div>
+
 </main>
 
 <script>
@@ -378,6 +445,8 @@ function veriYukle(){ try{return JSON.parse(localStorage.getItem('dgf_v5')||'{}'
 function kaydet(){ localStorage.setItem('dgf_v5', JSON.stringify(veri)); }
 let veri = veriYukle();
 if(!veri.kayitlar) veri.kayitlar={};
+if(!veri.sicakliklar) veri.sicakliklar={};
+if(!veri.fiyatGecmisi) veri.fiyatGecmisi=[];
 
 /* ── BAŞLANGIÇ ── */
 window.onload = function(){
@@ -386,6 +455,7 @@ window.onload = function(){
   document.getElementById('kayit-ay').value = bugun.getMonth();
   document.getElementById('kayit-yil').value = bugun.getFullYear();
   document.getElementById('gecmis-yil-label').textContent = aktifYil;
+  document.getElementById('analiz-yil-label').textContent = analizYil;
 
   // Ayar sekmesini doldur
   if(veri.birim){
@@ -395,6 +465,7 @@ window.onload = function(){
 
   aktifAyBilgisi();
   sonucBosGoster();
+  fiyatGecmisiGuncelle();
 };
 
 /* ── SEKME ── */
@@ -405,6 +476,8 @@ function switchTab(id,el){
   if(el) el.classList.add('active');
   if(id==='gecmis') gecmisGuncelle();
   if(id==='sayac') aktifAyBilgisi();
+  if(id==='analiz') analizGuncelle();
+  if(id==='fiyat') fiyatGecmisiGuncelle();
 }
 
 /* ── AKTİF AY BİLGİSİ ── */
@@ -500,6 +573,57 @@ function ayiKaydet(){
   mesajEl.style.display='block';
   mesajEl.textContent=`✓ ${AYLAR[ay]} ${yil} kaydedildi — ${m3.toFixed(2)} m³ · ${kdvli.toFixed(2)} ₺`;
   aktifAyBilgisi();
+
+  // O ay için ortalama sıcaklığı arka planda çek (Tuzla koordinatları)
+  aylikOrtalamaSecaklikCek(yil, ay, key);
+}
+
+async function aylikOrtalamaSecaklikCek(yil, ay, key) {
+  try {
+    // Ayın ilk ve son günü
+    const ilkGun = `${yil}-${String(ay+1).padStart(2,'0')}-01`;
+    const sonGun = new Date(yil, ay+1, 0);
+    const sonGunStr = `${yil}-${String(ay+1).padStart(2,'0')}-${String(sonGun.getDate()).padStart(2,'0')}`;
+
+    // Geçmiş ay mı, yoksa şimdiki ay mı kontrol et
+    const bugun = new Date();
+    const istekAy = new Date(yil, ay, 1);
+    
+    let url;
+    if(istekAy <= bugun) {
+      // Geçmiş veya bu ay - historical data
+      url = `https://api.open-meteo.com/v1/forecast?latitude=40.8167&longitude=29.3000&daily=temperature_2m_mean&start_date=${ilkGun}&end_date=${sonGunStr}&timezone=Europe%2FIstanbul`;
+    } else {
+      return; // Gelecek ay için sıcaklık çekme
+    }
+
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if(data.daily && data.daily.temperature_2m_mean) {
+      const gunlukSicakliklar = data.daily.temperature_2m_mean.filter(v => v !== null);
+      if(gunlukSicakliklar.length > 0) {
+        const ortalama = gunlukSicakliklar.reduce((a,b)=>a+b,0) / gunlukSicakliklar.length;
+        const sicKey = yil+'_'+(ay);
+        veri.sicakliklar[sicKey] = parseFloat(ortalama.toFixed(1));
+        kaydet();
+
+        // Kayıt mesajını güncelle
+        const mesajEl = document.getElementById('kayit-mesaj');
+        if(mesajEl && mesajEl.style.display !== 'none') {
+          const mevcutMetin = mesajEl.textContent;
+          mesajEl.textContent = mevcutMetin + ` · Ort. ${ortalama.toFixed(1)}°C`;
+        }
+
+        // Analiz sekmesi açıksa güncelle
+        if(document.getElementById('tab-analiz').classList.contains('active')) {
+          analizGuncelle();
+        }
+      }
+    }
+  } catch(e) {
+    console.log('Sıcaklık verisi alınamadı:', e);
+  }
 }
 
 /* ── AYARLAR ── */
@@ -507,6 +631,7 @@ function birimHesapla(){
   const t=parseFloat(document.getElementById('ayar-tutar').value);
   const m=parseFloat(document.getElementById('ayar-m3').value);
   if(!t||!m||m===0){document.getElementById('ayar-birim-sonuc').style.display='none';return;}
+  fiyatGecmisineEkle(t/m);
   veri.birim=t/m; kaydet();
   document.getElementById('ayar-birim-val').textContent=veri.birim.toFixed(4)+' ₺/m³';
   document.getElementById('ayar-birim-sonuc').style.display='block';
@@ -516,6 +641,7 @@ function birimHesapla(){
 function birimDirektKaydet(){
   const v=parseFloat(document.getElementById('ayar-birim-direkt').value);
   if(!v||v===0) return;
+  fiyatGecmisineEkle(v);
   veri.birim=v; kaydet();
   ayarOzetGoster(); hesapla();
 }
@@ -635,6 +761,267 @@ function kayitSil(ayIdx){
 </script>
 
 <script>
+/* ── FİYAT GEÇMİŞİ ── */
+let chartFiyat = null;
+function fiyatGecmisineEkle(yeniFiyat){
+  if(!veri.fiyatGecmisi) veri.fiyatGecmisi=[];
+  const son = veri.fiyatGecmisi[veri.fiyatGecmisi.length-1];
+  if(son && Math.abs(son.fiyat - yeniFiyat) < 0.0001) return; // aynı fiyatsa kaydetme
+  const bugun = new Date();
+  veri.fiyatGecmisi.push({
+    fiyat: yeniFiyat,
+    tarih: bugun.toLocaleDateString('tr-TR'),
+    zaman: bugun.getTime()
+  });
+  kaydet();
+}
+
+function fiyatGecmisiGuncelle(){
+  const mevcut = document.getElementById('fiyat-mevcut');
+  const bosEl = document.getElementById('fiyat-gecmis-bos');
+  const icerikEl = document.getElementById('fiyat-gecmis-icerik');
+
+  if(veri.birim){
+    mevcut.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:700;color:var(--accent);">${veri.birim.toFixed(4)} ₺</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px;">₺/m³ · vergisiz birim fiyat</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:13px;color:var(--text2);">${(veri.birim*1.2).toFixed(4)} ₺/m³</div>
+        <div style="font-size:11px;color:var(--text3);">KDV dahil</div>
+      </div>
+    </div>`;
+  }
+
+  const gecmis = veri.fiyatGecmisi || [];
+  if(gecmis.length < 2){ bosEl.style.display='block'; icerikEl.style.display='none'; return; }
+  bosEl.style.display='none'; icerikEl.style.display='block';
+
+  // Grafik
+  const ctx = document.getElementById('fiyatChart').getContext('2d');
+  if(chartFiyat) chartFiyat.destroy();
+  chartFiyat = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels: gecmis.map(g=>g.tarih),
+      datasets:[{
+        label:'Birim Fiyat (₺/m³)',
+        data: gecmis.map(g=>parseFloat(g.fiyat.toFixed(4))),
+        borderColor:'#f5a623',
+        backgroundColor:'rgba(245,166,35,0.1)',
+        borderWidth:2.5,
+        pointBackgroundColor:'#f5a623',
+        pointRadius:5,
+        fill:true,
+        tension:0.3
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:'#4d6a84',font:{size:10}},grid:{display:false}},
+        y:{ticks:{color:'#4d6a84',font:{size:10},callback:v=>v.toFixed(2)+' ₺'},grid:{color:'rgba(59,158,255,0.07)'}}
+      }
+    }
+  });
+
+  // Liste
+  let html = '';
+  const sirali = [...gecmis].reverse();
+  sirali.forEach((g, i) => {
+    const onceki = sirali[i+1];
+    let degisim = '';
+    if(onceki){
+      const fark = g.fiyat - onceki.fiyat;
+      const yuzde = ((fark/onceki.fiyat)*100).toFixed(1);
+      const renk = fark > 0 ? '#ff5c5c' : '#2ecc8a';
+      const ok = fark > 0 ? '▲' : '▼';
+      degisim = `<span style="font-size:11px;color:${renk};font-weight:500;">${ok} ${Math.abs(fark).toFixed(4)} ₺ (${fark>0?'+':''}${yuzde}%)</span>`;
+    } else {
+      degisim = `<span style="font-size:11px;color:var(--text3);">İlk kayıt</span>`;
+    }
+    html += `<div class="ay-satir${i===0?' girdili':''}" style="margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:${i===0?'var(--amber)':'var(--text2)'};">${g.fiyat.toFixed(4)} ₺/m³</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px;">${g.tarih}</div>
+        </div>
+        <div style="text-align:right;">${degisim}</div>
+      </div>
+    </div>`;
+  });
+  document.getElementById('fiyat-liste').innerHTML = html;
+}
+
+/* ── HAVA + TÜKETİM ANALİZİ ── */
+let analizYil = new Date().getFullYear();
+let chartAnaliz = null;
+
+function analizYilDegistir(f){
+  analizYil += f;
+  document.getElementById('analiz-yil-label').textContent = analizYil;
+  analizGuncelle();
+}
+
+function sicaklikKaydet(ayIdx, deger){
+  const key = analizYil+'_'+ayIdx;
+  if(deger===''){ delete veri.sicakliklar[key]; }
+  else { veri.sicakliklar[key] = parseFloat(deger); }
+  kaydet();
+  analizGrafiginiCiz();
+  analizYorumYap();
+}
+
+function analizGuncelle(){
+  const bosEl = document.getElementById('analiz-bos');
+  const icerikEl = document.getElementById('analiz-icerik');
+  const AYLAR_TR = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+
+  // O yıla ait tüketim kaydı var mı?
+  const varKayit = AYLAR_TR.some((_,i) => veri.kayitlar[analizYil+'_'+i]);
+
+  // Sıcaklığı olmayan kayıtlar için otomatik çek
+  AYLAR_TR.forEach((_,i) => {
+    const kk = analizYil+'_'+i;
+    const sk = analizYil+'_'+i;
+    if(veri.kayitlar[kk] && veri.sicakliklar[sk]===undefined) {
+      aylikOrtalamaSecaklikCek(analizYil, i, kk);
+    }
+  });
+  if(!varKayit){ bosEl.style.display='block'; icerikEl.style.display='none'; return; }
+  bosEl.style.display='none'; icerikEl.style.display='block';
+
+  // Sıcaklık giriş listesi
+  const liste = document.getElementById('sicaklik-liste');
+  liste.innerHTML='';
+  AYLAR_TR.forEach((ay, i) => {
+    const kayitKey = analizYil+'_'+i;
+    const tuketimKaydi = veri.kayitlar[kayitKey];
+    if(!tuketimKaydi) return; // Sadece tüketim kaydı olan ayları göster
+
+    const sicKey = analizYil+'_'+i;
+    const sicVal = veri.sicakliklar[sicKey]!==undefined ? veri.sicakliklar[sicKey] : '';
+
+    const otomatikMi = veri.sicakliklar[sicKey] !== undefined;
+    const sicaklikRenk = sicVal !== '' ? (sicVal <= 5 ? '#3b9eff' : sicVal <= 15 ? '#2ecc8a' : '#f5a623') : 'var(--text3)';
+
+    const div = document.createElement('div');
+    div.style.cssText='background:var(--bg3);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:8px;border:1px solid var(--border);';
+    div.innerHTML=`
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:600;color:var(--text2);">${ay}</div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:12px;color:var(--text3);">${tuketimKaydi.m3.toFixed(1)} m³</span>
+          ${sicVal!=='' ? `<span style="font-size:16px;font-weight:700;color:${sicaklikRenk};font-family:'Syne',sans-serif;">${sicVal}°C</span>` : ''}
+          ${otomatikMi ? '<span style="font-size:10px;background:rgba(59,158,255,0.12);color:var(--accent);padding:2px 8px;border-radius:20px;">otomatik</span>' : '<span style="font-size:10px;background:var(--bg4);color:var(--text3);padding:2px 8px;border-radius:20px;">girilmedi</span>'}
+        </div>
+      </div>
+      <div style="position:relative;">
+        <input type="number" value="${sicVal}" placeholder="Ortalama sıcaklık girin (°C)" min="-20" max="45" step="0.1"
+          style="width:100%;background:var(--bg4);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;padding:8px 36px 8px 12px;outline:none;-moz-appearance:textfield;box-sizing:border-box;"
+          onchange="sicaklikKaydet(${i}, this.value)" oninput="sicaklikKaydet(${i}, this.value)">
+        <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--text3);pointer-events:none;">°C</span>
+      </div>
+    `;
+    liste.appendChild(div);
+  });
+
+  analizGrafiginiCiz();
+  analizYorumYap();
+}
+
+function analizGrafiginiCiz(){
+  const AYLAR_TR = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+  const labels=[], m3Data=[], sicData=[];
+
+  AYLAR_TR.forEach((_,i) => {
+    const kk = analizYil+'_'+i;
+    const sk = analizYil+'_'+i;
+    if(veri.kayitlar[kk] && veri.sicakliklar[sk]!==undefined){
+      labels.push(AYLAR_TR[i].substring(0,3));
+      m3Data.push(parseFloat(veri.kayitlar[kk].m3.toFixed(2)));
+      sicData.push(veri.sicakliklar[sk]);
+    }
+  });
+
+  const legendEl = document.getElementById('analiz-legend');
+  if(labels.length < 2){
+    legendEl.innerHTML='<span style="font-size:12px;color:var(--text3);">En az 2 ay için sıcaklık girin.</span>';
+    if(chartAnaliz){chartAnaliz.destroy();chartAnaliz=null;}
+    return;
+  }
+
+  legendEl.innerHTML=`
+    <div class="leg"><div class="leg-dot" style="background:#3b9eff"></div>Tüketim (m³)</div>
+    <div class="leg"><div class="leg-dot" style="background:#ff5c5c"></div>Sıcaklık (°C)</div>`;
+
+  const ctx = document.getElementById('analizChart').getContext('2d');
+  if(chartAnaliz) chartAnaliz.destroy();
+  chartAnaliz = new Chart(ctx, {
+    data:{
+      labels,
+      datasets:[
+        {type:'bar', label:'Tüketim (m³)', data:m3Data, backgroundColor:'rgba(59,158,255,0.7)', borderRadius:4, yAxisID:'y1'},
+        {type:'line', label:'Sıcaklık (°C)', data:sicData, borderColor:'#ff5c5c', backgroundColor:'rgba(255,92,92,0.1)', borderWidth:2.5, pointBackgroundColor:'#ff5c5c', pointRadius:4, fill:true, tension:0.4, yAxisID:'y2'}
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:'#4d6a84',font:{size:11}},grid:{display:false}},
+        y1:{position:'left', ticks:{color:'#3b9eff',font:{size:10},callback:v=>v+'m³'}, grid:{color:'rgba(59,158,255,0.07)'}},
+        y2:{position:'right', ticks:{color:'#ff5c5c',font:{size:10},callback:v=>v+'°C'}, grid:{display:false}}
+      }
+    }
+  });
+}
+
+function analizYorumYap(){
+  const AYLAR_TR = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+  const yorumEl = document.getElementById('analiz-yorum');
+  const yorumMetin = document.getElementById('analiz-yorum-metin');
+
+  const veriNoktalar = [];
+  AYLAR_TR.forEach((_,i) => {
+    const kk = analizYil+'_'+i;
+    const sk = analizYil+'_'+i;
+    if(veri.kayitlar[kk] && veri.sicakliklar[sk]!==undefined){
+      veriNoktalar.push({ay:AYLAR_TR[i], m3:veri.kayitlar[kk].m3, sic:veri.sicakliklar[sk]});
+    }
+  });
+
+  if(veriNoktalar.length < 2){ yorumEl.style.display='none'; return; }
+  yorumEl.style.display='block';
+
+  const enSoguk = veriNoktalar.reduce((a,b)=>a.sic<b.sic?a:b);
+  const enSicak = veriNoktalar.reduce((a,b)=>a.sic>b.sic?a:b);
+  const enCok = veriNoktalar.reduce((a,b)=>a.m3>b.m3?a:b);
+  const enAz = veriNoktalar.reduce((a,b)=>a.m3<b.m3?a:b);
+
+  let yorum = `<b>${enSoguk.ay}</b> en soğuk ay (${enSoguk.sic}°C) ve <b>${enCok.ay}</b> en fazla tüketim (${enCok.m3.toFixed(1)} m³) gösterdi.<br>`;
+  yorum += `<b>${enSicak.ay}</b> en sıcak ay (${enSicak.sic}°C), <b>${enAz.ay}</b> ise en az tüketim (${enAz.m3.toFixed(1)} m³) ayı oldu.<br>`;
+
+  // Korelasyon basit hesaplama
+  const avgSic = veriNoktalar.reduce((s,d)=>s+d.sic,0)/veriNoktalar.length;
+  const avgM3 = veriNoktalar.reduce((s,d)=>s+d.m3,0)/veriNoktalar.length;
+  let cov=0, varSic=0, varM3=0;
+  veriNoktalar.forEach(d=>{
+    cov+=(d.sic-avgSic)*(d.m3-avgM3);
+    varSic+=(d.sic-avgSic)**2;
+    varM3+=(d.m3-avgM3)**2;
+  });
+  const kor = varSic*varM3>0 ? cov/Math.sqrt(varSic*varM3) : 0;
+
+  if(kor < -0.5) yorum += `Sıcaklık düştükçe tüketim belirgin şekilde artıyor <b>(güçlü ters ilişki: ${kor.toFixed(2)})</b> — kombini sık kullandığınız görülüyor.`;
+  else if(kor < -0.2) yorum += `Soğuk havalarda tüketim artma eğiliminde <b>(zayıf ters ilişki: ${kor.toFixed(2)})</b>.`;
+  else yorum += `Sıcaklık ile tüketim arasında belirgin bir ilişki gözlemlenmiyor <b>(${kor.toFixed(2)})</b>.`;
+
+  yorumMetin.innerHTML = yorum;
+}
+
 /* ── PDF RAPOR ── */
 function pdfRaporOlustur() {
   if(!veri.birim || Object.keys(veri.kayitlar).length === 0) {
